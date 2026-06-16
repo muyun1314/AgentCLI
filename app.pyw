@@ -454,5 +454,6 @@ if __name__ == "__main__":
         width=860,
         height=620,
         min_size=(620, 480),
+        icon=os.path.join(BASE_DIR, "logo", "logo.ico"),
     )
     webview.start()

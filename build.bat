@@ -12,7 +12,10 @@ pip show pywebview >nul 2>&1 || (
 )
 echo [3/4] Building...
 pyinstaller --onefile --windowed --name "AgentCLI" ^
+    --icon "logo\logo.ico" ^
     --add-data "web\index.html;web" ^
+    --add-data "web\logo.png;web" ^
+    --add-data "logo\logo.ico;logo" ^
     --hidden-import pythonnet ^
     --hidden-import clr_loader ^
     --hidden-import proxy_tools ^
@@ -22,5 +25,5 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
-echo [4/4] Build complete! Output: dist\AgentCliLauncher.exe
+echo [4/4] Build complete! Output: dist\AgentCLI.exe
 pause
