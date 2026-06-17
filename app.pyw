@@ -440,20 +440,64 @@ class AgentApi:
 # Entry Point
 # ============================================================
 if __name__ == "__main__":
-    import webview
+    import webview, threading
+    from http.server import HTTPServer, SimpleHTTPRequestHandler
 
     api = AgentApi()
-    html_path = os.path.join(BASE_DIR, "web", "index.html")
-    with open(html_path, "r", encoding="utf-8") as f:
-        html_content = f.read()
 
-    webview.create_window(
+    # Start a local HTTP server to serve web/ directory (logo.png etc.)
+    class Handler(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=os.path.join(BASE_DIR, "web"), **kwargs)
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+
+    def run_server():
+        server.serve_forever()
+    threading.Thread(target=run_server, daemon=True).start()
+
+    window = webview.create_window(
         title="AgentCLI",
-        html=html_content,
+        url=f"http://127.0.0.1:{port}/index.html",
         js_api=api,
         width=860,
         height=620,
         min_size=(620, 480),
-        icon=os.path.join(BASE_DIR, "logo", "logo.ico"),
     )
+
+    # Set window/taskbar icon via process icon (inherited by all windows)
+    try:
+        ico = os.path.join(BASE_DIR, "logo", "logo.ico")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("AgentCLI")
+        # Enumerate windows in a loop with retries
+        def _set_icon():
+            import time
+            result = []  # mutable container for found hwnd
+            for _ in range(20):  # retry for ~10 seconds
+                time.sleep(0.5)
+                result.clear()
+                WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
+                def _enum_cb(h, _):
+                    buf = ctypes.create_unicode_buffer(256)
+                    ctypes.windll.user32.GetWindowTextW(h, buf, 256)
+                    if "AgentCLI" in buf.value:
+                        result.append(h)
+                        return False
+                    return True
+                ctypes.windll.user32.EnumWindows(WNDENUMPROC(_enum_cb), 0)
+                if result:
+                    hwnd = result[0]
+                    WM_SETICON = 0x0080
+                    hicon = ctypes.windll.user32.LoadImageW(None, ico, 1, 0, 0, 0x00000010|0x00000020)
+                    if hicon:
+                        ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 1, hicon)
+                        ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 0, hicon)
+                    break
+        import threading
+        threading.Thread(target=_set_icon, daemon=True).start()
+    except Exception:
+        pass
+
     webview.start()
+    server.shutdown()
