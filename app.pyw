@@ -18,13 +18,19 @@ import uuid
 import time
 
 # ============================================================
-# Constants
+# Paths — handle PyInstaller onefile mode
 # ============================================================
-VERSION = "1.0.0"
-GITHUB_REPO = "muyun1314/AgentCLI"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOG_FILE = os.path.join(BASE_DIR, "app.log")
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+if getattr(sys, "frozen", False):
+    # Packaged EXE: config/log next to exe, resources in temp dir
+    APP_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    RESOURCE_DIR = sys._MEIPASS
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+    RESOURCE_DIR = APP_DIR
+
+BASE_DIR = APP_DIR  # compat alias
+LOG_FILE = os.path.join(APP_DIR, "app.log")
+CONFIG_FILE = os.path.join(APP_DIR, "config.json")
 
 # ============================================================
 # DPI Awareness
@@ -448,7 +454,7 @@ if __name__ == "__main__":
     # Start a local HTTP server to serve web/ directory (logo.png etc.)
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=os.path.join(BASE_DIR, "web"), **kwargs)
+            super().__init__(*args, directory=os.path.join(RESOURCE_DIR, "web"), **kwargs)
 
     server = HTTPServer(("127.0.0.1", 0), Handler)
     port = server.server_address[1]
@@ -468,7 +474,7 @@ if __name__ == "__main__":
 
     # Set window/taskbar icon via process icon (inherited by all windows)
     try:
-        ico = os.path.join(BASE_DIR, "logo", "logo.ico")
+        ico = os.path.join(RESOURCE_DIR, "logo", "logo.ico")
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("AgentCLI")
         # Enumerate windows in a loop with retries
         def _set_icon():
